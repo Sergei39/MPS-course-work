@@ -214,26 +214,74 @@ void receiving_usart()
 	} while (rx_data[i-1] != '\r');
 }
 
+uint8_t check_number()
+{
+	uint8_t counter = 0;
+	uint8_t counter2 = 0;
+	
+	for (uint8_t element = 0; element < 3; element++)
+	{
+		for (uint8_t i = 0; i < 10; i++)
+		{
+			if (rx_data[element] == (i | 0b00110000))
+			{
+				counter++;
+			}
+		}
+		
+		if (counter > 0)
+		{
+			counter = 0;
+		}
+		else
+		{
+			counter2++;
+		}
+	}
+	
+	if (counter2 > 0)
+	{
+		return 1;
+	}
+	else
+	{
+		if ( (((rx_data[0] & 0b00001111) * 100) + ((rx_data[1] & 0b00001111) * 10) + (rx_data[2] & 0b00001111)) > 255 )
+		{
+			return 1;
+		}
+		return 0;
+	}
+}
+
 //установка маршрута
 void set_route()
 {
-	fprintf(stderr, "Enter the count of stantions \"ddd\": ");
+	fprintf(stderr, "Enter the count of stantions (000-255): ");
 	
 	receiving_usart();
 	
-	ee_write_byte(0, ((rx_data[0] & 0b00001111) * 100) + ((rx_data[1] & 0b00001111) * 10) + (rx_data[2] & 0b00001111));
-	_delay_ms(5);
+	//fprintf(stderr, "check_number: %d\n", check_number());
 	
-	for (int stantion = 0; stantion < ee_read_byte(0); stantion++)
+	if (check_number())
 	{
-		fprintf(stderr, "Enter stantions #%d:\n", stantion + 1);
-		fprintf(stderr, "--------------------\n");
-		receiving_usart();
+		fprintf(stderr, "Wrong count!\n");
+	}
+	else
+	{
+		ee_write_byte(0, ((rx_data[0] & 0b00001111) * 100) + ((rx_data[1] & 0b00001111) * 10) + (rx_data[2] & 0b00001111));
+		_delay_ms(5);
 		
-		for (int letter = 0; letter < 20; letter++)
+		for (int stantion = 0; stantion < ee_read_byte(0); stantion++)
 		{
-			ee_write_byte(1 + (stantion * 20 + letter), rx_data[letter]);
-			_delay_ms(5);
+			fprintf(stderr, "Enter stantions #%d:\n", stantion + 1);
+			fprintf(stderr, "--------------------\n");
+			receiving_usart();
+			
+			for (int letter = 0; letter < 20; letter++)
+			{
+				ee_write_byte(1 + (stantion * 20 + letter), rx_data[letter]);
+				_delay_ms(5);
+			}
 		}
 	}
 }
