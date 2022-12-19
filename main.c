@@ -209,66 +209,55 @@ void receiving_usart()
 	{
 		while(!(UCSRA&(1<<RXC)));
 		rx_data[i] = UDR;
+		if (rx_data[i] == '\b')
+		{
+			i--;
+			continue;
+		}
 		i++;
 		
 	} while (rx_data[i-1] != '\r');
 }
 
-uint8_t check_number()
+int8_t get_number()
 {
-	uint8_t counter = 0;
-	uint8_t counter2 = 0;
+	int8_t number = 0;
 	
-	for (uint8_t element = 0; element < 3; element++)
+	for (uint8_t element = 0; element < 2; element++)
 	{
-		for (uint8_t i = 0; i < 10; i++)
+		if ((rx_data[element] > '9') || (rx_data[element] < '0'))
 		{
-			if (rx_data[element] == (i | 0b00110000))
-			{
-				counter++;
-			}
-		}
-		
-		if (counter > 0)
-		{
-			counter = 0;
-		}
-		else
-		{
-			counter2++;
+			return -1;
 		}
 	}
+	number = ((rx_data[0] & 0b00001111) * 10) + (rx_data[1] & 0b00001111);
 	
-	if (counter2 > 0)
+	if (number > 20)
 	{
-		return 1;
+		return -1;
 	}
-	else
-	{
-		if ( (((rx_data[0] & 0b00001111) * 100) + ((rx_data[1] & 0b00001111) * 10) + (rx_data[2] & 0b00001111)) > 255 )
-		{
-			return 1;
-		}
-		return 0;
-	}
+	return number;
 }
 
 //установка маршрута
 void set_route()
 {
-	fprintf(stderr, "Enter the count of stantions (000-255): ");
+	fprintf(stderr, "Enter the count of stantions (00-20): ");
 	
 	receiving_usart();
 	
-	//fprintf(stderr, "check_number: %d\n", check_number());
+	//fprintf(stderr, "check_number: %d\n", get_number());
+
+	int8_t count;
+	count = get_number();
 	
-	if (check_number())
+	if (count == -1)
 	{
 		fprintf(stderr, "Wrong count!\n");
 	}
 	else
 	{
-		ee_write_byte(0, ((rx_data[0] & 0b00001111) * 100) + ((rx_data[1] & 0b00001111) * 10) + (rx_data[2] & 0b00001111));
+		ee_write_byte(0, count);
 		_delay_ms(5);
 		
 		for (int stantion = 0; stantion < ee_read_byte(0); stantion++)
